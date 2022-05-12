@@ -1,13 +1,18 @@
 """
 Modified version of PyVertical's dataloader for vertically partitioned data.
 """
+from copy import deepcopy
 from typing import List
 from typing import Tuple
+from typing import TypeVar
 from uuid import UUID
+
+import numpy as np
 
 from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate
 
+Dataset = TypeVar("Dataset")
 
 
 def id_collate_fn(batch: Tuple) -> List:
@@ -156,8 +161,11 @@ def partition_dataset(
         for idx in idxs:
             np.random.shuffle(idx)
 
-    for i, partition in enumerate([partition_image1, partition_image2, partition_image3, partition_image4, partition_labels]):
+    for i, partition in enumerate([partition_image1, partition_image2, partition_image3, partition_image4]):
         partition.data = partition.data[idxs[i]]
         partition.ids  = partition.ids[idxs[i]]
 
+    partition_labels.targets = partition_labels.targets[idxs[4]]
+    partition_labels.ids     = partition_labels.ids[idxs[4]]
+    
     return partition_image1, partition_image2, partition_image3, partition_image4, partition_labels
