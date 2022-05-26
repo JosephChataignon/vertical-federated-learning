@@ -56,12 +56,11 @@ class VerticalDataLoader:
     i.e. the images dataset AND the labels dataset
     """
 
-    def __init__(self, dataset, *args, **kwargs):
+    def __init__(self, dataset, remove_data=False, keep_order=False, *args, **kwargs):
 
         # Split datasets
         self.partition_image1, self.partition_image2, self.partition_image3, self.partition_image4, self.partition_labels = partition_dataset(
-        #self.data_partition_data, self.data_partition_labels = partition_dataset(
-            dataset, remove_data=False, keep_order=False
+            dataset, remove_data=remove_data, keep_order=keep_order
         )
 
         assert self.partition_image1.targets is None
