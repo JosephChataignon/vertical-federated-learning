@@ -73,17 +73,24 @@ torch.manual_seed(0)
 
 
 
-## Build autoencoders here
+## Build and train autoencoders
+
+autoencoder_1 = Autoencoder(dataloader.dataloader_image1)
+autoencoder_2 = Autoencoder(dataloader.dataloader_image2)
+autoencoder_3 = Autoencoder(dataloader.dataloader_image3)
+autoencoder_4 = Autoencoder(dataloader.dataloader_image4)
+
+autoencoder_1.train_model()
+autoencoder_2.train_model()
+autoencoder_3.train_model()
+autoencoder_4.train_model()
 
 
 
-
-
-
-
-
-
-
+# DataLoaders that give the 4 quarters of images
+# keep image1 and pass others through autoencoderX.encoder
+# make a new dataloader out of it
+# new network using this as entry to rebuild image1
 
 
 
