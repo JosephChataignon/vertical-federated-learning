@@ -56,53 +56,44 @@ class ClassSplitDataLoader:
     i.e. the images dataset AND the labels dataset
     """
 
-    def __init__(self, dataset, remove_data=False, keep_order=False, *args, **kwargs):
+    def __init__(self, dataset, class_to_keep, remove_data=False, keep_order=False, *args, **kwargs):
 
         # Split datasets
-        self.data_partition1, self.data_partition2 = partition_dataset(
-            dataset, remove_data=False, keep_order=False
+        self.data_partition1 = partition_dataset(
+            dataset, class_to_keep=class_to_keep, remove_data=False, keep_order=False
         )
 
         assert self.data_partition1.targets is None
-        assert self.data_partition2.data is None
 
         self.dataloader1 = SinglePartitionDataLoader(
             self.data_partition1, *args, **kwargs
         )
-        self.dataloader2 = SinglePartitionDataLoader(
-            self.data_partition2, *args, **kwargs
-        )
 
     def __iter__(self):
-        return zip(self.dataloader1, self.dataloader2)
+        return self.dataloader1
 
     def __len__(self):
-        return (len(self.dataloader1) + len(self.dataloader2)) // 2
+        return len(self.dataloader1)
 
     def drop_non_intersecting(self, intersection: List[int]):
         """Remove elements and ids in the datasets that are not in the intersection."""
         self.dataloader1.dataset.data = self.dataloader1.dataset.data[intersection]
         self.dataloader1.dataset.ids = self.dataloader1.dataset.ids[intersection]
 
-        self.dataloader2.dataset.targets = self.dataloader2.dataset.targets[
-            intersection
-        ]
-        self.dataloader2.dataset.ids = self.dataloader2.dataset.ids[intersection]
 
     def sort_by_ids(self) -> None:
         """
         Sort each dataset by ids
         """
         self.dataloader1.dataset.sort_by_ids()
-        self.dataloader2.dataset.sort_by_ids()
 
 
 
 def partition_dataset(
     dataset: Dataset,
+    class_to_keep,
     keep_order: bool = False,
     remove_data: bool = True,
-    class_to_keep = 'all',
 ):
     """Vertically partition a torch dataset in two
 
@@ -135,29 +126,31 @@ def partition_dataset(
         raise RuntimeError("Dataset does not have attribute 'ids'")
 
     partition1 = deepcopy(dataset)
-    partition2 = deepcopy(dataset)
-
-    # Partition data
-    partition1.targets = None
-    partition2.data = None
-
+    
+    # Remove data points not belonging to the desired class
+    if class_to_keep in np.arange(10):
+        print('loading class: '+str(class_to_keep))
+        idxs1 = (partition1.targets == class_to_keep)
+        partition1.data = partition1.data[idxs1]
+        partition1.ids = partition1.ids[idxs1]
+    else:
+        raise UnexpectedClassException(f'class_to_keep has value {class_to_keep}, which is not one of the classes of this dataset')
+    
+    
     # Re-index data
     idxs1 = np.arange(len(partition1))
-    idxs2 = np.arange(len(partition2))
 
     # Remove random subsets of data with 1% prob
     if remove_data:
         idxs1 = np.random.uniform(0, 1, len(partition1)) > 0.01
-        idxs2 = np.random.uniform(0, 1, len(partition2)) > 0.01
 
     if not keep_order:
         np.random.shuffle(idxs1)
-        np.random.shuffle(idxs2)
 
     partition1.data = partition1.data[idxs1]
     partition1.ids = partition1.ids[idxs1]
 
-    partition2.targets = partition2.targets[idxs2]
-    partition2.ids = partition2.ids[idxs2]
-
-    return partition1, partition2
+    # remove labels
+    partition1.targets = None
+    
+    return partition1

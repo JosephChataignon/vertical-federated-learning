@@ -8,7 +8,7 @@ Clone the PyVertical project from https://github.com/OpenMined/PyVertical. Insta
 Specify the path where you cloned PyVertical in a `.env` file, and place that file in the `vertical-federated-learning` folder.
 
 #### Use PyVertical
-Before launching any script, enter the virtual environment created whiel installing PyVertical:
+Before launching any script, enter the virtual environment created while installing PyVertical:
 
 `conda activate pyvertical-dev`
 
