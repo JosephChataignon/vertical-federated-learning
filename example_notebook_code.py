@@ -36,9 +36,7 @@ class SplitNN:
         if data[-1].location == self.models[1].location:
             remote_tensors.append(data[-1].detach().requires_grad_())
         else:
-            remote_tensors.append(
-                data[-1].detach().move(self.models[1].location).requires_grad_()
-            )
+            remote_tensors.append(data[-1].detach().move(self.models[1].location).requires_grad_())
 
         i = 1
         while i < (len(models) - 1):
@@ -47,9 +45,7 @@ class SplitNN:
             if data[-1].location == self.models[i + 1].location:
                 remote_tensors.append(data[-1].detach().requires_grad_())
             else:
-                remote_tensors.append(
-                    data[-1].detach().move(self.models[i + 1].location).requires_grad_()
-                )
+                remote_tensors.append(data[-1].detach().move(self.models[i + 1].location).requires_grad_())
 
             i += 1
 

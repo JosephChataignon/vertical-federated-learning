@@ -70,7 +70,7 @@ class ClassSplitDataLoader:
         )
 
     def __iter__(self):
-        return self.dataloader1
+        return zip(self.dataloader1)
 
     def __len__(self):
         return len(self.dataloader1)
@@ -129,7 +129,6 @@ def partition_dataset(
     
     # Remove data points not belonging to the desired class
     if class_to_keep in np.arange(10):
-        print('loading class: '+str(class_to_keep))
         idxs1 = (partition1.targets == class_to_keep)
         partition1.data = partition1.data[idxs1]
         partition1.ids = partition1.ids[idxs1]

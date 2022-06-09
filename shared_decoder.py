@@ -1,5 +1,5 @@
  
-import sys
+import sys, copy
 import utils
 
 PYVERTICAL_LOCATION = utils.load_from_dotenv("PYVERTICAL_LOCATION")
@@ -16,8 +16,10 @@ import matplotlib.pyplot as plt
 
 from src.psi.util import Client, Server
 from src.utils import add_ids
+
 from data_loader import VerticalDataLoader
 from class_split_data_loader import ClassSplitDataLoader
+from shared_NN import SharedNN
 
 hook = sy.TorchHook(torch)
 
@@ -26,37 +28,146 @@ hook = sy.TorchHook(torch)
 
 ## Create dataset
 
+n_encoders = 3 # number of encoders we will train
+
 # add_ids is a wrapper that adds ids to whatever torch dataset is given in argument
 data = add_ids(MNIST)(".", download=True, transform=ToTensor())
 
-# Create dataloader
-dataloader = ClassSplitDataLoader(data, class_to_keep=0, remove_data=False, keep_order=True, batch_size=128) 
-# partition_dataset uses by default "remove_data=True, keep_order=False"
-# Do not do this for now
-
-
-
-# Verify the dataset
-figure = plt.figure()
-for index in range(1, 11):
-    plt.subplot(6, 10, index)
-    plt.axis('off')
-    plt.imshow(dataloader.dataloader1.dataset.data[index].numpy().squeeze(), cmap='gray_r')
-plt.show()
-
-
-
-
-
-
-
+# Create dataloader(s)
+dataloaders = []
+for k in range(n_encoders):
+    dataloader = ClassSplitDataLoader(data, class_to_keep=k, remove_data=False, keep_order=True, batch_size=128) 
+    dataloaders.append(dataloader)
+    # partition_dataset uses by default "remove_data=True, keep_order=False"
+    # Do not do this for now
 
 
 
 
 ## Build Neural Network
 
+epochs = 10
+
 torch.manual_seed(0)
+
+input_size = 784
+hidden_sizes = [128, 640]
+encoded_size = 10
+
+encoder = nn.Sequential(
+        nn.Linear(input_size, hidden_sizes[0]),
+        nn.ReLU(),
+        nn.Linear(hidden_sizes[0], hidden_sizes[1]),
+        nn.ReLU(),
+        nn.Linear(hidden_sizes[1], encoded_size),
+        nn.ReLU(),
+    )
+decoder = nn.Sequential(
+        nn.Linear(encoded_size, hidden_sizes[1]),
+        nn.ReLU(),
+        nn.Linear(hidden_sizes[1], hidden_sizes[0]),
+        nn.ReLU(),
+        nn.Linear(hidden_sizes[0], input_size),
+        nn.LogSoftmax(dim=1),
+    )
+models = [copy.deepcopy(encoder) for k in range(n_encoders)] + [decoder]
+
+# Create optimisers for each segment and link to them
+optimizers = [optim.SGD(model.parameters(), lr=0.03,) for model in models]
+
+# create some workers
+model_locations = [sy.VirtualWorker(hook, id=f"encoder_{k}") for k in range(n_encoders)]
+model_locations += [sy.VirtualWorker(hook, id="decoder")]
+
+# Send Model Segments to model locations
+for model, location in zip(models, model_locations):
+    model.send(location)
+
+# Create the SharedNN
+sharedNN = SharedNN(models, optimizers)
+
+
+## Learning
+
+for i in range(epochs):
+    running_loss = 0
+    correct_preds = 0
+    total_preds = 0
+    
+    for k in range(n_encoders):
+        # for now, train the encoders one after another
+        dataloader = dataloaders[k]
+        
+        for ((data, ids),) in dataloader:
+            # Train a model
+            data1 = data.send(models[k].location)
+            data1 = data1.view(data.shape[0], -1)
+            print(f'data1 size: {data1.shape}')
+
+            #1) Zero our grads
+            sharedNN.zero_grads()
+            
+            #2) Make a prediction
+            pred = sharedNN.forward(k, data1)
+            pred2 = pred.send(models[k].location)
+            
+            #3) Figure out how much we missed by
+            criterion = nn.MSELoss()
+            print('cp1')
+            data2 = data.send(models[k].location)
+            data2 = data2.view(data.shape[0], -1)
+            print('cp2')
+            print(f'data2 location: {data2.location}')
+            print(f'pred2 location: {pred2.location}')
+            x = pred2 + data2
+            print('cp3')
+            loss = criterion(pred.send(models[k].location), data2)
+            print('cp4')
+            loss.send(models[-1].location)
+            
+            #4) Backprop the loss on the end layer
+            loss.backward()
+            
+            #5) Feed Gradients backward through the nework
+            sharedNN.backward()
+            
+            #6) Change the weights
+            sharedNN.step()
+
+    # Collect statistics
+    running_loss += loss.get()
+    correct_preds += preds.max(1)[1].eq(labels).sum().get().item()
+    total_preds += preds.get().size(0)
+
+    print(f"Epoch {i} - Training loss: {running_loss/len(dataloader):.3f} - Accuracy: {100*correct_preds/total_preds:.3f}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
