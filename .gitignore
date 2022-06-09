@@ -131,3 +131,7 @@ dmypy.json
 
 # Dataset
 VerticalDataset/
+# My OS's temp files
+*.kate-swp
+
+
