@@ -100,32 +100,25 @@ for i in range(epochs):
         
         for ((data, ids),) in dataloader:
             # Train a model
-            data1 = data.send(models[k].location)
-            data1 = data1.view(data.shape[0], -1)
-            print(f'data1 size: {data1.shape}')
+            data = data.view(data.shape[0], -1)
+            data_for_comparison = copy.deepcopy(data)
+            # we need a copy of the data to compare to the output of the decoder
+            data = data.send(models[k].location)
+            data_for_comparison = data_for_comparison.send(models[k].location)
 
             #1) Zero our grads
             sharedNN.zero_grads()
             
-            #2) Make a prediction
-            pred = sharedNN.forward(k, data1)
-            pred2 = pred.send(models[k].location)
+            #2) Make a prediction and move it to the encoder
+            pred = sharedNN.forward(k, data)
+            pred = pred.move(models[k].location)
             
             #3) Figure out how much we missed by
             criterion = nn.MSELoss()
-            print('cp1')
-            data2 = data.send(models[k].location)
-            data2 = data2.view(data.shape[0], -1)
-            print('cp2')
-            print(f'data2 location: {data2.location}')
-            print(f'pred2 location: {pred2.location}')
-            x = pred2 + data2
-            print('cp3')
-            loss = criterion(pred.send(models[k].location), data2)
-            print('cp4')
-            loss.send(models[-1].location)
+            loss = criterion(pred, data)
             
             #4) Backprop the loss on the end layer
+            loss = loss.move(models[-1].location)
             loss.backward()
             
             #5) Feed Gradients backward through the nework
@@ -136,8 +129,8 @@ for i in range(epochs):
 
     # Collect statistics
     running_loss += loss.get()
-    correct_preds += preds.max(1)[1].eq(labels).sum().get().item()
-    total_preds += preds.get().size(0)
+    #correct_preds += pred.max(1)[1].eq(labels).sum().get().item()
+    total_preds += pred.get().size(0)
 
     print(f"Epoch {i} - Training loss: {running_loss/len(dataloader):.3f} - Accuracy: {100*correct_preds/total_preds:.3f}")
 
