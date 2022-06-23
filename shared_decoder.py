@@ -119,6 +119,7 @@ for i in range(epochs):
             
             #4) Backprop the loss on the end layer
             loss = loss.move(models[-1].location)
+            print(f'loss grad: {loss.copy().get().grad}')
             loss.backward()
             
             #5) Feed Gradients backward through the nework

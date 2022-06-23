@@ -1,4 +1,4 @@
- 
+import copy
 
 class SharedNN:
     def __init__(self, models, optimizers):
@@ -27,14 +27,15 @@ class SharedNN:
     def backward(self):
         # remote_tensors[0].location is on the decoder
         #grads = self.remote_tensors[0].grad.copy().move(self.data[0].location)
-        g1 = self.remote_tensors[0]
-        g2 = g1.grad
-        print(type(g2))
-        print(g2.shape)
-        print(g1.copy().grad.get())
-        g3 = g2.copy()
-        g4 = g3.move(self.data[0].location)
-        grads = g4
+        print('\n')
+        print(type(self.remote_tensors[0]))
+        print(self.remote_tensors[0])
+        print(self.remote_tensors[0].location)
+        print(self.remote_tensors[0].copy().get())
+        print(self.remote_tensors[0].copy().get().grad)
+        print('\n')
+        # PROBLEM: grad is None
+        grads = self.remote_tensors[0].grad.copy().move(self.data[0].location)
 
         self.data[0].backward(grads)
 

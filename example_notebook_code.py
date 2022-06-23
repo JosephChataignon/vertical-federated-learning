@@ -182,7 +182,6 @@ def train(x, target, splitNN):
     loss = criterion(pred, target)
     
     #4) Backprop the loss on the end layer
-    print(f'loss: {loss.get()}')
     loss.backward()
     
     #5) Feed Gradients backward through the nework
