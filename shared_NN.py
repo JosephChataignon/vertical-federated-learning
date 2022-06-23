@@ -1,8 +1,10 @@
 import copy
 
 class SharedNN:
-    def __init__(self, models, optimizers):
-        self.models = models
+    def __init__(self, encoders, decoder, buffer_layers, optimizers):
+        self.encoders = encoders
+        self.decoder = decoder
+        self.buffer_layers = buffer_layers
         self.optimizers = optimizers
 
         self.data = [] # will contain [output of encoder, output of decoder]
@@ -12,12 +14,14 @@ class SharedNN:
         data = []
         remote_tensors = []
 
-        data.append(self.models[encoder_index](x))
+        data.append(self.encoders[encoder_index](x))
+        remote_tensors.append(data[0].detach().move(self.decoder.location).requires_grad_())
+        
+        data.append(self.decoder(remote_tensors[-1]))
+        print(f'\n{self.buffer_layers[encoder_index].location}\n')
+        remote_tensors.append(data[1].detach().move(self.buffer_layers[encoder_index].location).requires_grad_())
 
-        # self.models[-1] is the decoder
-        remote_tensors.append(data[0].detach().move(self.models[-1].location).requires_grad_())
-
-        data.append(self.models[-1](remote_tensors[-1]))
+        data.append(self.buffer_layers[encoder_index](remote_tensors[-1]))
 
         self.data = data
         self.remote_tensors = remote_tensors
@@ -25,18 +29,11 @@ class SharedNN:
         return data[-1]
 
     def backward(self):
-        # remote_tensors[0].location is on the decoder
-        #grads = self.remote_tensors[0].grad.copy().move(self.data[0].location)
-        print('\n')
-        print(type(self.remote_tensors[0]))
-        print(self.remote_tensors[0])
-        print(self.remote_tensors[0].location)
-        print(self.remote_tensors[0].copy().get())
-        print(self.remote_tensors[0].copy().get().grad)
-        print('\n')
-        # PROBLEM: grad is None
+        
+        grads = self.remote_tensors[1].grad.copy().move(self.data[1].location)
+        self.data[0].backward(grads)
+        
         grads = self.remote_tensors[0].grad.copy().move(self.data[0].location)
-
         self.data[0].backward(grads)
 
     def zero_grads(self):

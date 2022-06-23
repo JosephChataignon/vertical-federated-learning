@@ -70,21 +70,34 @@ decoder = nn.Sequential(
         nn.Linear(hidden_sizes[0], input_size),
         nn.LogSoftmax(dim=1),
     )
-models = [copy.deepcopy(encoder) for k in range(n_encoders)] + [decoder]
+buffer_layer = nn.Identity(input_size, unused_argument1=0.1)
+encoders = [copy.deepcopy(encoder) for k in range(n_encoders)]
+buffer_layers = [copy.deepcopy(buffer_layer) for k in range(n_encoders)]
 
 # Create optimisers for each segment and link to them
-optimizers = [optim.SGD(model.parameters(), lr=0.03,) for model in models]
+models_to_learn = encoders + [decoder]
+optimizers = [optim.SGD(model.parameters(), lr=0.03,) for model in models_to_learn]
 
 # create some workers
-model_locations = [sy.VirtualWorker(hook, id=f"encoder_{k}") for k in range(n_encoders)]
-model_locations += [sy.VirtualWorker(hook, id="decoder")]
+encoder_workers = [sy.VirtualWorker(hook, id=f"encoder_{k}") for k in range(n_encoders)]
+decoder_worker = sy.VirtualWorker(hook, id="decoder")
 
 # Send Model Segments to model locations
-for model, location in zip(models, model_locations):
+for model, location in zip(encoders, encoder_workers):
+    print(model)
     model.send(location)
+    print(model.location)
+decoder.send(decoder_worker)
+for model, location in zip(buffer_layers, encoder_workers):
+    print(model)
+    model.send(location)
+    print(model.location)
+
+print('DEBUG:: ')
+print(buffer_layers[0].location)
 
 # Create the SharedNN
-sharedNN = SharedNN(models, optimizers)
+sharedNN = SharedNN(encoders, decoder, buffer_layers, optimizers)
 
 
 ## Learning
@@ -103,23 +116,23 @@ for i in range(epochs):
             data = data.view(data.shape[0], -1)
             data_for_comparison = copy.deepcopy(data)
             # we need a copy of the data to compare to the output of the decoder
-            data = data.send(models[k].location)
-            data_for_comparison = data_for_comparison.send(models[k].location)
+            data = data.send(encoders[k].location)
+            data_for_comparison = data_for_comparison.send(encoders[k].location)
 
             #1) Zero our grads
             sharedNN.zero_grads()
             
             #2) Make a prediction and move it to the encoder
             pred = sharedNN.forward(k, data)
-            pred = pred.move(models[k].location)
+            #pred = pred.move(models[k].location)
             
             #3) Figure out how much we missed by
             criterion = nn.MSELoss()
             loss = criterion(pred, data)
             
             #4) Backprop the loss on the end layer
-            loss = loss.move(models[-1].location)
-            print(f'loss grad: {loss.copy().get().grad}')
+            #loss = loss.move(models[-1].location)
+            #print(f'loss grad: {loss.copy().get().grad}')
             loss.backward()
             
             #5) Feed Gradients backward through the nework
