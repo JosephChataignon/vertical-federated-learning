@@ -179,16 +179,21 @@ def train(x, target, splitNN):
     
     #3) Figure out how much we missed by
     criterion = nn.NLLLoss()
+    #print(splitNN.models[0].copy().get().grad)
     loss = criterion(pred, target)
     
     #4) Backprop the loss on the end layer
+    #print(splitNN.models[0].copy().get().grad)
     loss.backward()
     
     #5) Feed Gradients backward through the nework
+    #print(splitNN.models[0].copy().get().grad)
     splitNN.backward()
     
     #6) Change the weights
+    #print(splitNN.models[0].copy().get().grad)
     splitNN.step()
+    #print(splitNN.models[0].copy().get().grad)
     
     return loss, pred
 
@@ -198,6 +203,7 @@ for i in range(epochs):
     correct_preds = 0
     total_preds = 0
 
+    #print(f'weight 1 before: {models[0][0].weight[0].copy().get()}')
     for (data, ids1), (labels, ids2) in dataloader:
         # Train a model
         data = data.send(models[0].location)
@@ -212,6 +218,7 @@ for i in range(epochs):
         correct_preds += preds.max(1)[1].eq(labels).sum().get().item()
         total_preds += preds.get().size(0)
 
+    #print(f'weight 1 after: {models[0][0].weight[0].copy().get()}')
     print(f"Epoch {i} - Training loss: {running_loss/len(dataloader):.3f} - Accuracy: {100*correct_preds/total_preds:.3f}")
 
 

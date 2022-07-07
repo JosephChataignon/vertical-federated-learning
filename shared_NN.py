@@ -18,8 +18,7 @@ class SharedNN:
         remote_tensors.append(data[0].detach().move(self.decoder.location).requires_grad_())
         
         data.append(self.decoder(remote_tensors[-1]))
-        print(f'\n{self.buffer_layers[encoder_index].location}\n')
-        remote_tensors.append(data[1].detach().move(self.buffer_layers[encoder_index].location).requires_grad_())
+        remote_tensors.append(data[1].detach().move(self.encoders[encoder_index].location).requires_grad_())
 
         data.append(self.buffer_layers[encoder_index](remote_tensors[-1]))
 
@@ -31,7 +30,8 @@ class SharedNN:
     def backward(self):
         
         grads = self.remote_tensors[1].grad.copy().move(self.data[1].location)
-        self.data[0].backward(grads)
+        self.data[1].backward(grads)
+        print(self.data[1].copy().get().grad)
         
         grads = self.remote_tensors[0].grad.copy().move(self.data[0].location)
         self.data[0].backward(grads)

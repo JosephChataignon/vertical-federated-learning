@@ -84,17 +84,11 @@ decoder_worker = sy.VirtualWorker(hook, id="decoder")
 
 # Send Model Segments to model locations
 for model, location in zip(encoders, encoder_workers):
-    print(model)
     model.send(location)
-    print(model.location)
 decoder.send(decoder_worker)
+#TODO erase this is useless, Identity doesn't have a location because it has no weights
 for model, location in zip(buffer_layers, encoder_workers):
-    print(model)
     model.send(location)
-    print(model.location)
-
-print('DEBUG:: ')
-print(buffer_layers[0].location)
 
 # Create the SharedNN
 sharedNN = SharedNN(encoders, decoder, buffer_layers, optimizers)
@@ -132,13 +126,15 @@ for i in range(epochs):
             
             #4) Backprop the loss on the end layer
             #loss = loss.move(models[-1].location)
-            #print(f'loss grad: {loss.copy().get().grad}')
+            print(f'loss: {loss.copy().get()}')
             loss.backward()
             
             #5) Feed Gradients backward through the nework
             sharedNN.backward()
             
             #6) Change the weights
+            print('weights')
+            print(decoder[0].weight.copy().get())
             sharedNN.step()
 
     # Collect statistics
