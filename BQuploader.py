@@ -13,7 +13,9 @@ class BQuploader:
         self.BQclient = bigquery.Client()
         self.BQdataset = self.BQclient.dataset(dataset_id)
         self.BQjob_config = bigquery.LoadJobConfig(
-                source_format=bigquery.SourceFormat.CSV, skip_leading_rows=1, autodetect=True,
+                source_format=bigquery.SourceFormat.CSV,
+                skip_leading_rows=1, 
+                autodetect=True,
                 write_disposition = bigquery.WriteDisposition.WRITE_APPEND,
                 max_bad_records = 5,
             )

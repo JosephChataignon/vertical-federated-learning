@@ -131,7 +131,9 @@ dmypy.json
 
 # Dataset
 VerticalDataset/
-# My OS's temp files
+# temporary files
 *.kate-swp
+temp.csv
+# credentials
 vertical-federated-learning-credentials.json
 
